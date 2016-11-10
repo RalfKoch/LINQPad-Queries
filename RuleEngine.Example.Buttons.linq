@@ -14,7 +14,7 @@ void Main()
 		// IMPORTANT
 		// Can we connect more than one rule with and Operator AND / OR ???
 		// We need to do some research on that!!!
-		// We also need to check if the rules can use the AND / OR operator.
+		// We also need to check if the rules can use the AND / OR operator, that would help a lot.
 		new Rule ( "Administrator", "Global", "IsAdmin", ExpressionType.Equal, "true"),
 		new Rule ( "Betriebsbüro", "Global", "IsBB", ExpressionType.Equal, "true"),
 	};
