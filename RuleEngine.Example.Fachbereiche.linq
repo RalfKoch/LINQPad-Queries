@@ -1,118 +1,108 @@
 <Query Kind="Program">
+  <Reference>&lt;RuntimeDirectory&gt;\SMDiagnostics.dll</Reference>
   <Reference>&lt;RuntimeDirectory&gt;\System.ComponentModel.DataAnnotations.dll</Reference>
   <Reference>&lt;RuntimeDirectory&gt;\System.Configuration.dll</Reference>
+  <Reference>&lt;RuntimeDirectory&gt;\System.Runtime.Serialization.dll</Reference>
+  <Reference>&lt;RuntimeDirectory&gt;\System.ServiceModel.Internals.dll</Reference>
+  <Namespace>System</Namespace>
+  <Namespace>System.Collections.Generic</Namespace>
   <Namespace>System.ComponentModel.DataAnnotations</Namespace>
+  <Namespace>System.Linq</Namespace>
+  <Namespace>System.Linq.Expressions</Namespace>
+  <Namespace>System.Reflection</Namespace>
+  <Namespace>System.Runtime.Serialization</Namespace>
+  <Namespace>System.Runtime.Serialization.Json</Namespace>
+  <Namespace>System.Text.RegularExpressions</Namespace>
+  <Namespace>System.Xml.Serialization</Namespace>
 </Query>
 
 void Main()
 {
 	// Alle Regeln in einer Liste anlegen.
 	// Dann kann man bestimmte Regeln nach Namen oder nach Groupen extrahieren und anwenden.
-	List<Rule> rules = new List<Rule>
+	Rule rule = new Rule()
 	{
-		// Create some rules using LINQ.ExpressionTypes for the comparison operators
-		new Rule ( "Administrator", "Global", "IsAdmin", ExpressionType.Equal, "true"),
-		new Rule ( "Betriebsbüro", "Global", "IsBB", ExpressionType.Equal, "true"),
-		new Rule ( "Fachbereich", "Global", "Kennziffer", ExpressionType.Equal, "00"),
-        new Rule ( "Fachbereich", "Global", "Kennziffer", ExpressionType.Equal, "01")
+		Operation = ExpressionType.AndAlso.ToString("g"),
+		Rules = new List<Rule>()
+				{
+					new Rule(){ Property = "mitarbeiter.Kennziffer", Value = "00", Operation = ExpressionType.Equal.ToString("g")},
+					new Rule(){
+						Operation = ExpressionType.Or.ToString("g"),
+						Rules = new List<Rule>(){
+							new Rule(){ Property = "mitarbeiter.IsAdmin", Value = "true", Operation = ExpressionType.Equal.ToString("g")},
+							new Rule(){ Property = "mitarbeiter.IsBB", Value = "true", Operation = ExpressionType.Equal.ToString("g")}
+						}
+					}
+				}
 	};
 
-	var compiledMakeModelYearRules = PrecompiledRules.CompileRule(new List<Car>(), rules);
+	var controller = new RuleEngineController();
+	Console.WriteLine("As XML Format:");
+	controller.SaveRuleAsXml(rule);
+	Console.WriteLine();
+	Console.WriteLine("As JSON Format:");
+	controller.SaveRulesAsJson(rule);
 
-	// Create a list to house your test cars
-	List<Car> cars = new List<Car>();
-
-	// Create a car that's year and model fail the rules validations      
-	Car car1_Bad = new Car
-	{
-		Year = 2011,
-		Make = "El Nino",
-		Model = "Torche"
-	};
-
-	// Create a car that meets all the conditions of the rules validations
-	Car car2_Good = new Car
-	{
-		Year = 2015,
-		Make = "El Nino",
-		Model = "Torch"
-	};
-
-	// Add your cars to the list
-	cars.Add(car1_Bad);
-	cars.Add(car2_Good);
-
-	// Iterate through your list of cars to see which ones meet the rules vs. the ones that don't
-	cars.ForEach(car =>
-	{
-		if (compiledMakeModelYearRules.TakeWhile(rule => rule(car)).Count() > 0)
-		{
-			Console.WriteLine(string.Concat("Car model: ", car.Model, " Passed the compiled rules engine check!"));
-		}
-		else
-		{
-			Console.WriteLine(string.Concat("Car model: ", car.Model, " Failed the compiled rules engine check!"));
-		}
-	});
+	return;
 }
 
-// Define other methods and classes here
-
-/// Author: Cole Francis, Architect
-/// The pre-compiled rules type
-/// 
-public static class PrecompiledRules
-{
-	///
-	/// A method used to precompile rules for a provided type
-	/// 
-	public static List<Func<T, bool>> CompileRule<T>(List<T> targetEntity, List<Rule> rules)
-	{
-		var compiledRules = new List<Func<T, bool>>();
-
-		// Loop through the rules and compile them against the properties of the supplied shallow object 
-		rules.ForEach(rule =>
-		{
-			var genericType = Expression.Parameter(typeof(T));
-			var key = MemberExpression.Property(genericType, rule.ComparisonPredicate);
-			var propertyType = typeof(T).GetProperty(rule.ComparisonPredicate).PropertyType;
-			var value = Expression.Constant(Convert.ChangeType(rule.ComparisonValue, propertyType));
-			var binaryExpression = Expression.MakeBinary(rule.ComparisonOperator, key, value);
-
-			//compiledRules.Add(Expression.Lambda<Func>(binaryExpression, genericType).Compile());
-			compiledRules.Add(Expression.Lambda<Func<T, bool>>(binaryExpression, genericType).Compile());
-		});
-
-		// Return the compiled rules to the caller
-		return compiledRules;
-	}
-
-	///
-	/// A method used to precompile rules for a provided type
-	/// 
-	public static List<Func<T, bool>> CompileRule<T>(List<Rule> rules)
-	{
-		var compiledRules = new List<Func<T, bool>>();
-
-		// Loop through the rules and compile them against the properties of the supplied shallow object 
-		rules.ForEach(rule =>
-		{
-			var genericType = Expression.Parameter(typeof(T));
-			var key = MemberExpression.Property(genericType, rule.ComparisonPredicate);
-			var test = typeof(T);
-			var test1 = test.GetProperty("Year");
-			var propertyType = typeof(T).GetProperty(rule.ComparisonPredicate).PropertyType;
-			var value = Expression.Constant(Convert.ChangeType(rule.ComparisonValue, propertyType));
-			var binaryExpression = Expression.MakeBinary(rule.ComparisonOperator, key, value);
-
-			//compiledRules.Add(Expression.Lambda<Func>(binaryExpression, genericType).Compile());
-			compiledRules.Add(Expression.Lambda<Func<T, bool>>(binaryExpression, genericType).Compile());
-		});
-
-		// Return the compiled rules to the caller
-		return compiledRules;
-	}
-}
+//// Define other methods and classes here
+//
+///// Author: Cole Francis, Architect
+///// The pre-compiled rules type
+///// 
+//public static class PrecompiledRules
+//{
+//	///
+//	/// A method used to precompile rules for a provided type
+//	/// 
+//	public static List<Func<T, bool>> CompileRule<T>(List<T> targetEntity, List<Rule> rules)
+//	{
+//		var compiledRules = new List<Func<T, bool>>();
+//
+//		// Loop through the rules and compile them against the properties of the supplied shallow object 
+//		rules.ForEach(rule =>
+//		{
+//			var genericType = Expression.Parameter(typeof(T));
+//			var key = MemberExpression.Property(genericType, rule.Property);
+//			var propertyType = typeof(T).GetProperty(rule.Property).PropertyType;
+//			var value = Expression.Constant(Convert.ChangeType(rule.Value, propertyType));
+//			var binaryExpression = Expression.MakeBinary(rule.Operation, key, value);
+//
+//			//compiledRules.Add(Expression.Lambda<Func>(binaryExpression, genericType).Compile());
+//			compiledRules.Add(Expression.Lambda<Func<T, bool>>(binaryExpression, genericType).Compile());
+//		});
+//
+//		// Return the compiled rules to the caller
+//		return compiledRules;
+//	}
+//
+//	///
+//	/// A method used to precompile rules for a provided type
+//	/// 
+//	public static List<Func<T, bool>> CompileRule<T>(List<Rule> rules)
+//	{
+//		var compiledRules = new List<Func<T, bool>>();
+//
+//		// Loop through the rules and compile them against the properties of the supplied shallow object 
+//		rules.ForEach(rule =>
+//		{
+//			var genericType = Expression.Parameter(typeof(T));
+//			var key = MemberExpression.Property(genericType, rule.Property);
+//			var test = typeof(T);
+//			var test1 = test.GetProperty("Year");
+//			var propertyType = typeof(T).GetProperty(rule.Property).PropertyType;
+//			var value = Expression.Constant(Convert.ChangeType(rule.Value, propertyType));
+//			var binaryExpression = Expression.MakeBinary(rule.Operation, key, value);
+//
+//			//compiledRules.Add(Expression.Lambda<Func>(binaryExpression, genericType).Compile());
+//			compiledRules.Add(Expression.Lambda<Func<T, bool>>(binaryExpression, genericType).Compile());
+//		});
+//
+//		// Return the compiled rules to the caller
+//		return compiledRules;
+//	}
+//}
 
 ///
 /// The Rule type
@@ -122,68 +112,71 @@ public class Rule
 	///
 	/// Denotes the rules predictate (e.g. Name); comparison operator(e.g. ExpressionType.GreaterThan); value (e.g. "Cole")
 	/// 
-	
+
 	// Name der Regel, dieser sollte die Regel beschreiben.
 	public string Name { get; set; }
-	
+
 	// Name der Gruppe, zu der diese Regel gehört.
 	public string Group { get; set; }
 
 	// Beschreibung der Regel, damit sollte es klarer werden für den Anwender.
 	public string Description { get; set; }
-	
+
 	// Name der Eigenschaft (Prädikat), die durch die Regel geprüft werden soll.
-	public string ComparisonPredicate { get; set; }
-	
+	public string Property { get; set; }
+
 	// Der Vergleichsoperand der Regel, der die Eigenschaft (Prädikat) mit dem Wert vergleicht.
-	public ExpressionType ComparisonOperator { get; set; }
-	
+	public string Operation { get; set; }
+
 	// Der Wert, mit der die Eigenschaft der Regel verglichen werden soll.
-	public string ComparisonValue { get; set; }
+	public string Value { get; set; }
+
+	public List<Rule> Rules { get; set; }
+
+	public List<object> Inputs { get; set; }
 
 	/// 
 	/// The rule method that 
 	/// 
-	public Rule(string name, string comparisonPredicate, ExpressionType comparisonOperator, string comparisonValue)
+	public Rule()
 	{
-		Name = name;
-		ComparisonPredicate = comparisonPredicate;
-		ComparisonOperator = comparisonOperator;
-		ComparisonValue = comparisonValue;
 	}
 
-	public Rule(string name, string group, string comparisonPredicate, ExpressionType comparisonOperator, string comparisonValue)
+	public Rule(string name, string property, string operation, string value)
+	{
+		Name = name;
+		Property = property;
+		Operation = operation;
+		Value = value;
+	}
+
+	public Rule(string name, string group, string property, string operation, string value)
 	{
 		Name = name;
 		Group = group;
-		ComparisonPredicate = comparisonPredicate;
-		ComparisonOperator = comparisonOperator;
-		ComparisonValue = comparisonValue;
+		Property = property;
+		Operation = operation;
+		Value = value;
 	}
 
-	public Rule(string name, string group, string description, string comparisonPredicate, ExpressionType comparisonOperator, string comparisonValue)
+	public Rule(string name, string group, string description, string property, string operation, string value)
 	{
 		Name = name;
 		Group = group;
 		Description = description;
-		ComparisonPredicate = comparisonPredicate;
-		ComparisonOperator = comparisonOperator;
-		ComparisonValue = comparisonValue;
+		Property = property;
+		Operation = operation;
+		Value = value;
 	}
 }
 
-public class Car : ICar
+public class Mitarbeiter
 {
-	public int Year { get; set; }
-	public string Make { get; set; }
-	public string Model { get; set; }
-}
+	public string Kennziffer { get; set; }
 
-public class ICar
-{
-	int Year { get; set; }
-	string Make { get; set; }
-	string Model { get; set; }
+	public bool IsAdmin { get; set; }
+
+	public bool IsBB { get; set; }
 }
 
 public class Fachbereich : IEquatable<Fachbereich>, IValidatableObject
@@ -344,5 +337,466 @@ public class Fachbereich : IEquatable<Fachbereich>, IValidatableObject
 	public override string ToString()
 	{
 		return string.Format("{0}: {1}", Kennziffer, Bezeichnung);
+	}
+}
+
+public interface IRuleEngineController
+{
+	void SaveRuleAsXml(Rule rule);
+
+	void SaveRuleAsXml(List<Rule> rules);
+
+	void SaveRulesAsJson(Rule rule);
+
+	void SaveRulesAsJson(List<Rule> rules);
+
+	void DeleteRule(Rule rule);
+
+	void GetRuleByName(string name);
+	
+	bool ExecuteRuleByName<T>(string name, T value);
+}
+
+/// <summary>
+/// Hier werden die Regeln ausgelesen und ausgeführt, dass Ergebnis wird an den Aufruf zurückgegeben.
+/// </summary>
+/// <seealso cref="Flink.RuleEngine.IRuleEngineController" />
+public class RuleEngineController
+{
+	private RuleEngine RuleEngine { get; set; }
+
+	private List<Rule> Rules { get; set; }
+
+	public RuleEngineController()
+	{
+		RuleEngine = new RuleEngine();
+	}
+
+	public void SaveRuleAsXml(Rule rule)
+	{
+		if (rule == null) throw new ArgumentNullException("Es wurde keine Regel übergeben");
+
+		var ruleString = SerializationHelper<Rule>.SerializeObjectToXml(rule, Encoding.UTF8);
+
+		Console.WriteLine(ruleString);
+	}
+
+	public void SaveRuleAsXml(List<Rule> rules)
+	{
+		if (rules == null) throw new ArgumentNullException("Es wurde keine Regel übergeben");
+
+		var ruleString = SerializationHelper<List<Rule>>.SerializeObjectToXml(rules, Encoding.UTF8);
+
+		Console.WriteLine(ruleString);
+	}
+
+	public void SaveRulesAsJson(Rule rule)
+	{
+		if (rule == null) throw new ArgumentNullException("Es wurde keine Regel übergeben");
+
+		var ruleString = SerializationHelper<Rule>.SerializeObjectToJson(rule, Encoding.UTF8);
+
+		Console.WriteLine(ruleString);
+	}
+
+	public void SaveRulesAsJson(List<Rule> rules)
+	{
+		if (rules == null) throw new ArgumentNullException("Es wurde keine Regel übergeben");
+
+		var ruleString = SerializationHelper<List<Rule>>.SerializeObjectToJson(rules, Encoding.UTF8);
+
+		Console.WriteLine(ruleString);
+	}
+
+	public void DeleteRule(Rule rule)
+	{
+		throw new NotImplementedException();
+	}
+
+	public Rule GetRuleByName(string name)
+	{
+		if (Rules?.Count <= 0) return null;
+		return Rules.Find(x => x.Name == name);
+	}
+
+	public bool ExecuteRuleByName<T>(string name, T value)
+	{
+		if (RuleEngine == null)
+			RuleEngine = new RuleEngine();
+
+		var rule = GetRuleByName(name);
+		if (rule == null) throw new ArgumentNullException($"No such rule by the name '{name}' found!");
+		
+		var ruling = RuleEngine.CompileRule<T>(rule);
+		return ruling(value);
+	}
+}
+
+/// <summary>
+/// Helper class to serialize objects to various formats.
+/// Currenty we are supporting XML and JSON.
+/// </summary>
+public class SerializationHelper<T>
+{
+	#region Serialize Object XML
+	/// <summary>
+	///   Serialize an [object] to an Xml String.
+	/// </summary>
+	/// <typeparam name="T">Object Type to Serialize</typeparam>
+	/// <param name="obj">Object Type to Serialize</param>
+	/// <param name="encoding">System.Text.Encoding Type</param>
+	/// <returns>Empty.String if Exception, XML string if successful</returns>
+	/// <example>
+	///   // UTF-16 Serialize
+	///   string xml = SerializationHelper<ObjectType>SerializeObjectToXml( [object], new UnicodeEncoding( false, false ) );
+	/// </example>
+	/// <example>
+	///   // UTF-8 Serialize
+	///   string xml = SerializationHelper<ObjectType>SerializeObjectToXml( [object], Encoding.UTF8 );
+	/// </example> 
+	public static string SerializeObjectToXml(T obj, Encoding encoding)
+	{
+		if (obj == null) { return string.Empty; }
+
+		try
+		{
+			var xmlSerializer = new XmlSerializer(typeof(T));
+			using (var memoryStream = new MemoryStream())
+			{
+				var xmlWriterSettings = new XmlWriterSettings() { Encoding = encoding };
+				using (var writer = XmlWriter.Create(memoryStream, xmlWriterSettings))
+				{
+					xmlSerializer.Serialize(writer, obj);
+				}
+
+				return encoding.GetString(memoryStream.ToArray());
+			}
+		}
+		catch (InvalidOperationException ex)
+		{
+			// Write something in a logger if there is one...
+			return string.Empty;
+		}
+		catch (Exception ex)
+		{
+			// Write something in a logger if there is one...
+			return string.Empty;
+		}
+	}
+
+	/// <summary>
+	///   Deserialize an Xml String to an [object]
+	/// </summary>
+	/// <typeparam name="T">Object Type to Deserialize</typeparam>
+	/// <param name="xml">Xml String to Deserialize</param>
+	/// <param name="encoding">System.Text.Encoding Type</param>
+	/// <returns>Default if Exception, Deserialize object if successful</returns>
+	/// <example>
+	///   // UTF-16 Deserialize
+	///   [object] = SerializationHelper<ObjectType>DeserializeObjectFromXml( xml, Encoding.Unicode )
+	/// </example>
+	/// <example>
+	///   // UTF-8 Deserialize
+	///   [object] = SerializationHelper<ObjectType>DeserializeObjectFromXml( xml, Encoding.UTF8 )
+	/// </example> 
+	public static T DeserializeObjectFromXml(string xml, Encoding encoding)
+	{
+		if (string.IsNullOrEmpty(xml)) { return default(T); }
+
+		try
+		{
+			using (var memoryStream = new MemoryStream(encoding.GetBytes(xml)))
+			{
+				var xmlSerializer = new XmlSerializer(typeof(T));
+				var xmlReaderSettings = new XmlReaderSettings();
+				using (XmlReader xmlReader = XmlReader.Create(memoryStream, xmlReaderSettings))
+				{
+					return (T)xmlSerializer.Deserialize(xmlReader);
+				}
+			}
+		}
+		catch (InvalidOperationException ex)
+		{
+			// Write something in a logger if there is one...
+			return default(T);
+		}
+		catch (Exception ex)
+		{
+			// Write something in a logger if there is one...
+			return default(T);
+		}
+	}
+	#endregion
+
+	#region Serialize Object JSON
+	/// <summary>
+	///   Serialize an [object] to a Json String.
+	/// </summary>
+	/// <typeparam name="T">Object Type to Serialize</typeparam>
+	/// <param name="obj">Object Type to Serialize</param>
+	/// <param name="encoding">System.Text.Encoding Type</param>
+	/// <returns>Empty.String if Exception, JSON string if successful</returns>
+	/// <example>
+	///   // UTF-16 Serialize
+	///   string json = SerializationHelper<ObjectType>SerializeObjectToJson( [object], new UnicodeEncoding( false, false ) );
+	/// </example>
+	/// <example>
+	///   // UTF-8 Serialize
+	///   string json = SerializationHelper<ObjectType>SerializeObjectToJson( [object], Encoding.UTF8 );
+	/// </example> 
+	public static string SerializeObjectToJson(T obj, Encoding encoding)
+	{
+		if (obj == null) { return string.Empty; }
+
+		try
+		{
+			//Create a stream to serialize the object to.  
+			using (MemoryStream ms = new MemoryStream())
+			{
+				var jsonSerializer = new DataContractJsonSerializer(typeof(T));
+				jsonSerializer.WriteObject(ms, obj);
+				byte[] json = ms.ToArray();
+				return encoding.GetString(json, 0, json.Length);
+			}
+		}
+		catch (SerializationException ex)
+		{
+			// Write something in a logger if there is one...
+			return string.Empty;
+		}
+		catch (Exception ex)
+		{
+			// Write something in a logger if there is one...
+			return string.Empty;
+		}
+	}
+
+	/// <summary>
+	///   Deserialize an Json String to an [object]
+	/// </summary>
+	/// <typeparam name="T">Object Type to Deserialize</typeparam>
+	/// <param name="json">Json String to Deserialize</param>
+	/// <param name="encoding">System.Text.Encoding Type</param>
+	/// <returns>Default if Exception, Deserialize object if successful</returns>
+	/// <example>
+	///   // UTF-16 Deserialize
+	///   [object] = SerializationHelper<ObjectType>DeserializeObjectFromJson( json, Encoding.Unicode )
+	/// </example>
+	/// <example>
+	///   // UTF-8 Deserialize
+	///   [object] = SerializationHelper<ObjectType>DeserializeObjectFromJson( json, Encoding.UTF8 )
+	/// </example> 
+	public static T DeserializeObjectFromJson(string json, Encoding encoding)
+	{
+		if (string.IsNullOrEmpty(json)) { return default(T); }
+
+		try
+		{
+			using (MemoryStream ms = new MemoryStream(encoding.GetBytes(json)))
+			{
+				var jsonSerializer = new DataContractJsonSerializer(typeof(T));
+				return (T)jsonSerializer.ReadObject(ms);
+			}
+		}
+		catch (SerializationException ex)
+		{
+			// Write something in a logger if there is one...
+			return default(T);
+		}
+		catch (Exception ex)
+		{
+			// Write something in a logger if there is one...
+			return default(T);
+		}
+	}
+	#endregion
+}
+
+public class RuleEngine
+{
+	private ExpressionType[] nestedOperators = { ExpressionType.And, ExpressionType.AndAlso, ExpressionType.Or, ExpressionType.OrElse };
+
+	public bool PassesRules<T>(IList<Rule> rules, T toInspect)
+	{
+		return CompileRules<T>(rules).Invoke(toInspect);
+	}
+
+	public Func<T, bool> CompileRule<T>(Rule r)
+	{
+		var paramUser = Expression.Parameter(typeof(T));
+		Expression expr = GetExpressionForRule<T>(r, paramUser);
+
+		return Expression.Lambda<Func<T, bool>>(expr, paramUser).Compile();
+	}
+
+	Expression GetExpressionForRule<T>(Rule r, ParameterExpression param)
+	{
+		ExpressionType nestedOperator;
+		if (ExpressionType.TryParse(r.Operation, out nestedOperator) && nestedOperators.Contains(nestedOperator) && r.Rules != null && r.Rules.Any())
+			return BuildNestedExpression<T>(r.Rules, param, nestedOperator);
+
+		return BuildExpr<T>(r, param);
+	}
+
+	public Func<T, bool> CompileRules<T>(IList<Rule> rules)
+	{
+		var paramUser = Expression.Parameter(typeof(T));
+		var expr = BuildNestedExpression<T>(rules, paramUser, ExpressionType.And);
+		return Expression.Lambda<Func<T, bool>>(expr, paramUser).Compile();
+	}
+
+	private Expression BuildNestedExpression<T>(IList<Rule> rules, ParameterExpression param, ExpressionType operation)
+	{
+		var expressions = new List<Expression>();
+		foreach (var r in rules)
+		{
+			expressions.Add(GetExpressionForRule<T>(r, param));
+		}
+
+		var expr = BinaryExpression(expressions, operation);
+		return expr;
+	}
+
+	private Expression BinaryExpression(IList<Expression> expressions, ExpressionType operationType)
+	{
+		Func<Expression, Expression, Expression> methodExp = (x1, x2) => Expression.And(x1, x2);
+		switch (operationType)
+		{
+			case ExpressionType.Or:
+				methodExp = (x1, x2) => Expression.Or(x1, x2);
+				break;
+			case ExpressionType.OrElse:
+				methodExp = (x1, x2) => Expression.OrElse(x1, x2);
+				break;
+			case ExpressionType.AndAlso:
+				methodExp = (x1, x2) => Expression.AndAlso(x1, x2);
+				break;
+		}
+
+		if (expressions.Count == 1)
+			return expressions[0];
+
+		var exp = methodExp(expressions[0], expressions[1]);
+		for (int i = 2; expressions.Count > i; i++)
+		{
+			exp = methodExp(exp, expressions[i]);
+		}
+
+		return exp;
+	}
+
+	private Expression AndExpressions(IList<Expression> expressions)
+	{
+		if (expressions.Count == 1)
+			return expressions[0];
+
+		var exp = Expression.And(expressions[0], expressions[1]);
+		for (var i = 2; expressions.Count > i; i++)
+		{
+			exp = Expression.And(exp, expressions[i]);
+		}
+
+		return exp;
+	}
+
+	private Expression OrExpressions(IList<Expression> expressions)
+	{
+		if (expressions.Count == 1)
+			return expressions[0];
+
+		var exp = Expression.Or(expressions[0], expressions[1]);
+		for (var i = 2; expressions.Count > i; i++)
+		{
+			exp = Expression.Or(exp, expressions[i]);
+		}
+
+		return exp;
+	}
+
+	private Expression BuildExpr<T>(Rule r, ParameterExpression param)
+	{
+		Expression propExpression;
+		Type propType;
+
+		if (string.IsNullOrEmpty(r.Property))//check is against the object itself
+		{
+			propExpression = param;
+			propType = propExpression.Type;
+		}
+		else if (r.Property.Contains('.'))//Child property
+		{
+			var childProperties = r.Property.Split('.');
+			var property = typeof(T).GetTypeInfo().GetDeclaredProperty(childProperties[0]);
+
+			//// Original:
+			//var property = typeof(T).GetProperty(childProperties[0]);
+
+			var paramExp = Expression.Parameter(typeof(T), "SomeObject");
+
+			propExpression = Expression.PropertyOrField(param, childProperties[0]);
+			for (var i = 1; i < childProperties.Length; i++)
+			{
+				if (property == null) continue;
+
+				var orig = property;
+
+				property = property.PropertyType.GetRuntimeProperty(childProperties[i]);
+
+				//// Original:
+				//property = property.PropertyType.GetProperty(childProperties[i]);
+				propExpression = Expression.PropertyOrField(propExpression, childProperties[i]);
+			}
+			propType = propExpression.Type;
+		}
+		else//Property
+		{
+			propExpression = Expression.PropertyOrField(param, r.Property);
+			propType = propExpression.Type;
+		}
+
+		// is the operator a known .NET operator?
+		if (Enum.TryParse(r.Operation, out ExpressionType tBinary))
+		{
+			var right = this.StringToExpression(r.Value, propType);
+			return Expression.MakeBinary(tBinary, propExpression, right);
+		}
+
+		if (r.Operation == "IsMatch")
+		{
+			return Expression.Call(
+				typeof(Regex).GetTypeInfo().GetDeclaredMethod("IsMatch"),
+				propExpression,
+				Expression.Constant(r.Value, typeof(string)),
+				Expression.Constant(RegexOptions.IgnoreCase, typeof(RegexOptions))
+				);
+
+			//// Original:
+			//return Expression.Call(
+			//    typeof(Regex).GetMethod("IsMatch", new[] { typeof(string), typeof(string), typeof(RegexOptions) }),
+			//    propExpression,
+			//    Expression.Constant(r.TargetValue, typeof(string)),
+			//    Expression.Constant(RegexOptions.IgnoreCase, typeof(RegexOptions))
+			//);
+
+		}
+
+		//Invoke a method on the Property
+		var inputs = r.Inputs.Select(x => x.GetType()).ToArray();
+		var methodInfo = propType.GetTypeInfo().GetDeclaredMethod(r.Operation);
+
+		//// Original:
+		//var methodInfo = propType.GetMethod(r.Operator, inputs);
+
+		if (!methodInfo.IsGenericMethod)
+			inputs = null;//Only pass in type information to a Generic Method
+		var expressions = r.Inputs.Select(x => Expression.Constant(x)).ToArray();
+		return Expression.Call(propExpression, r.Operation, inputs, expressions);
+	}
+
+	private Expression StringToExpression(string value, Type propType)
+	{
+		return Expression.Constant(value.ToLower() == "null"
+			? null
+			: Convert.ChangeType(value, propType));
 	}
 }

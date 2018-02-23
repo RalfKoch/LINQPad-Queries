@@ -27,8 +27,8 @@ void ExpressionTest01()
 
 	item.personalNummer = "100123456";
 	item.firma = "10";
-	//object condition = "personalNummer.StartsWith(firma)";
-	object condition = item.personalNummer == string.Empty;
+	object condition = item.personalNummer.StartsWith(item.firma);
+	//object condition = item.personalNummer == string.Empty;
 
 	// This expression represents a conditional operation. 
 	// It evaluates the test (first expression) and

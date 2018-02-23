@@ -33,14 +33,14 @@ void Main()
 		Name = "btnSave",
 		Enabled = false,
 		Visible = true
-	}
+	};
 
 	var btnNew = new Button
 	{
 		Name = "btnNew",
 		Enabled = false,
 		Visible = true
-	}
+	};
 	
 	// Add your buttons to the list
 	buttons.Add(btnSave);
